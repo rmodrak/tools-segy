@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+
+import sys
+
+import numpy as np
+import pylab
+
+from segytools.reader import readsegy, readsu
+
+
+def gridplot(Z):
+    """ Plots values on 2D rectangular grid
+    """
+    import pylab
+    pylab.pcolor(Z)
+
+
+def filetype(filename):
+    """ Decides filetype based on extension.
+
+     Checks standard SU and SEGY extensions as well as extensions in use by
+     SPECFEM2D and SPECFEM3D. 
+    """
+
+    if '.segy' in filename.lower():
+        return 'segy'
+
+    elif '.su' in filename.lower():
+        return 'su'
+
+    elif 'single.bin' in filename:
+        return 'su'
+
+    elif 'single.adj' in filename:
+        return 'su'
+
+    elif '_SU' in filename:
+        return 'su'
+
+    else:
+        return None
+
+
+def splot(s, h, normalize=True, nxmax=1000, nymax=1000):
+    """Plots seismic record section"""
+    ny = s.shape[0]
+    nx = s.shape[1]
+    iy = range(ny)
+    ix = range(nx)
+
+    if ny > nymax:
+        iy = _ceil(ny, nymax)
+        iy = range(0, ny, iy)
+
+    if nx > nxmax:
+        ix = _ceil(nx, nxmax)
+        ix = range(0, nx, ix)
+
+    for ir in range(h.nr):
+        if normalize:
+            w = 1.#max(abs(s[:, ir]))
+            if w > 0:
+                s[:, ir] = s[:, ir]/w
+            else:
+                break
+
+    f = gridplot(np.flipud(s[np.ix_(iy, ix)]))
+    #f.set_cmap(pylab.cm.gray)
+
+
+
+def wplot(w):
+    """Plots seismic waveform"""
+
+    import pylab
+
+    pylab.figure(figsize=(7.5, 3))
+    line = pylab.plot(w[:, 0], w[:, 1])
+
+    pylab.setp(line, color='k', linestyle='-')
+    pylab.setp(line, color='k', linestyle='', marker='.', markersize=0.5)
+    pylab.axis('tight')
+    pylab.title(file)
+
+    pylab.show()
+
+
+def gridplot(Z):
+    """ Plots values on 2D rectangular grid
+    """
+    import pylab
+    return pylab.pcolor(Z)
+
+
+def _ceil(x, y):
+    z = float(x)/float(y)
+    return int(np.ceil(z))
+
+
+
+if __name__ == '__main__':
+    """ Plots record section read from SU or SEGY file
+    """
+
+    filename = sys.argv[1]
+
+    if filetype(filename) == 'segy':
+        s, h = readsegy(filename)
+    elif filetype(filename) == 'su':
+        s, h = readsu(filename)
+    else:
+        print "Only SEG-Y and SU files."
+        sys.exit(1)
+
+    print 'ntraces:', s.shape[1]
+    print 'nsamples:', s.shape[0]
+
+    if len(sys.argv[1:]) == 1:
+        print 'min, max:', s.min(), s.max()
+
+        # plot record section
+        splot(s, h)
+        pylab.show()
+
+    else:
+        for ii in sys.argv[2:]:
+            ii = int(ii)
+
+            w = np.zeros((h.nt))
+            t = np.linspace(0, h.nt*h.dt, h.nt)
+            w = s[:, ii]
+
+            print 'min, max:', s[:, ii].min(), s[:, ii].max()
+
+            # plot waveform
+            #wplot(w)
+            pylab.plot(t, w); pylab.show()
+
